@@ -16,6 +16,11 @@ export function createApp() {
     app.use(cors({ origin: env.FRONTEND_URL, credentials: true }));
     app.use(express.json());
 
+    app.get('/', (_req, res) => {
+        res.json({ success: true, message: 'Welcome to StudyGenius API. Use /api/...' });
+    });
+
+
     app.get('/api/health', (_req, res) => {
         res.json({ success: true, message: 'StudyGenius API is running' });
     });
