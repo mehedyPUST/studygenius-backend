@@ -1,4 +1,3 @@
-import { createApp } from '../src/app';
-
-const app = createApp();
-export = app;
+export default function handler(req: any, res: any) {
+    res.status(200).json({ success: true, message: 'Function works' });
+}
