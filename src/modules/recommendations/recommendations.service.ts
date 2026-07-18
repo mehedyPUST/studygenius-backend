@@ -5,7 +5,14 @@ import { env } from '../../config/env';
 import { buildRecommendationPrompt } from '../../utils/prompts';
 import { ObjectId } from 'mongodb';
 
-const genAI = new GoogleGenerativeAI(env.GEMINI_API_KEY);
+let genAI: GoogleGenerativeAI | null = null;
+
+function getGenAI(): GoogleGenerativeAI {
+    if (!genAI) {
+        genAI = new GoogleGenerativeAI(env.GEMINI_API_KEY);
+    }
+    return genAI;
+}
 
 interface RecommendationDoc {
     _id?: ObjectId;
@@ -30,7 +37,6 @@ export async function getRecommendationsForUser(userId: string) {
 
     if (existing) return existing.items;
 
-    // Gather user context (same as before)
     const interactions = await db.collection('interactions').find({ userId: new ObjectId(userId) }).toArray();
     const viewedPlans = interactions.filter(i => i.action === 'view').map(i => i.planId);
     const plans = await db.collection('plans').find({ _id: { $in: viewedPlans } }).project({ subject: 1, difficulty: 1 }).toArray();
@@ -61,7 +67,7 @@ export async function getRecommendationsForUser(userId: string) {
     } else {
         try {
             const prompt = buildRecommendationPrompt(topics, mostCommonDifficulty, liked, disliked);
-            const model = genAI.getGenerativeModel({
+            const model = getGenAI().getGenerativeModel({
                 model: 'gemini-2.0-flash',
                 generationConfig: { responseMimeType: 'application/json', temperature: 0.7 },
             });

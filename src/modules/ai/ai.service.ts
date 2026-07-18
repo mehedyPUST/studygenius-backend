@@ -3,7 +3,14 @@ import { env } from '../../config/env';
 import { AppError } from '../../middlewares/errorHandler';
 import { buildPlanContentPrompt } from '../../utils/prompts';
 
-const genAI = new GoogleGenerativeAI(env.GEMINI_API_KEY);
+let genAI: GoogleGenerativeAI | null = null;
+
+function getGenAI(): GoogleGenerativeAI {
+    if (!genAI) {
+        genAI = new GoogleGenerativeAI(env.GEMINI_API_KEY);
+    }
+    return genAI;
+}
 
 export async function generatePlanContent(input: {
     topic: string;
@@ -26,7 +33,7 @@ export async function generatePlanContent(input: {
         input.refinementInstruction
     );
 
-    const model = genAI.getGenerativeModel({
+    const model = getGenAI().getGenerativeModel({
         model: 'gemini-2.0-flash',
         generationConfig: {
             responseMimeType: 'application/json',
@@ -41,7 +48,6 @@ export async function generatePlanContent(input: {
         const parsed = JSON.parse(text);
         return parsed;
     } catch (err: any) {
-        // If quota exceeded or other error, fallback to mock
         console.error('Gemini error, using mock fallback:', err.message);
         return mockGeneratePlanContent(input);
     }
@@ -70,7 +76,6 @@ function mockGeneratePlanContent(input: { topic: string; difficulty: string; out
         },
     ];
 
-    // If refinement provided, adjust the output slightly
     if (refinementInstruction) {
         return {
             introduction: `${intro} (Refined with: "${refinementInstruction}")`,
