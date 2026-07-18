@@ -16,7 +16,8 @@ export const validate = (schema: ZodSchema, source: 'body' | 'query' | 'params' 
         } else if (source === 'query') {
             (req as any).parsedQuery = result.data;
         } else if (source === 'params') {
-            req.params = result.data;
+            // Cast to Record<string, string> because Express params are always strings
+            req.params = result.data as Record<string, string>;
         }
 
         next();

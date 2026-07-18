@@ -1,7 +1,7 @@
 import { getDb } from '../../lib/mongodb';
 import { AppError } from '../../middlewares/errorHandler';
-import { ObjectId, Filter, Sort } from 'mongodb';
 import { Plan, Review } from '../../types';
+import { ObjectId, Filter } from 'mongodb';
 
 export async function getPlans(query: {
     search?: string;
@@ -18,9 +18,6 @@ export async function getPlans(query: {
     if (query.subject) filter.subject = query.subject;
     if (query.difficulty) filter.difficulty = query.difficulty as Plan['difficulty'];
     if (query.search) filter.$text = { $search: query.search };
-
-    // If minRating is provided, we'll aggregate later; for now we'll do a lookup
-    // We'll use aggregation pipeline to compute average rating and filter.
 
     const pipeline: any[] = [
         { $match: filter },
@@ -40,19 +37,16 @@ export async function getPlans(query: {
         },
     ];
 
-    // Apply rating filter if needed
     if (query.minRating && query.minRating > 0) {
         pipeline.push({ $match: { avgRating: { $gte: query.minRating } } });
     }
 
-    // Sort
     let sort: any = { createdAt: -1 };
     if (query.sortBy === 'rating') sort = { avgRating: -1, createdAt: -1 };
     if (query.sortBy === 'hours') sort = { estimatedHours: 1 };
 
     pipeline.push({ $sort: sort });
 
-    // Pagination
     const totalCountPipeline = [...pipeline, { $count: 'total' }];
     const totalResult = await db.collection('plans').aggregate(totalCountPipeline).toArray();
     const total = totalResult.length > 0 ? totalResult[0].total : 0;
@@ -124,7 +118,13 @@ export async function updatePlan(planId: string, userId: string, data: Partial<P
         { $set: { ...data, updatedAt: new Date() } },
         { returnDocument: 'after' }
     );
-    return updated.value;
+
+    // findOneAndUpdate returns the updated document directly (or null)
+    if (!updated) {
+        throw new AppError(500, 'Update failed', 'UPDATE_FAILED');
+    }
+
+    return updated;
 }
 
 export async function deletePlan(planId: string, userId: string) {
